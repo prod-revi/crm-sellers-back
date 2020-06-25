@@ -17,7 +17,10 @@ const crearToken = (user, secret, expiresIn) => {
 // Resolvers
 const resolvers = {
   Query: {
-    getUser: async (_, {}, ctx) => ctx.user,
+    getUser: async (_, {}, ctx) => {
+      console.log(ctx)
+      return ctx.user
+    },
     getProduct: async () => {
       try {
         const orders = await Order.find({});
@@ -42,8 +45,10 @@ const resolvers = {
       }
     },
     getClientsSeller: async (_, {}, ctx) => {
+      console.log(ctx.user)
       try {
         const Clients = await Client.find({ seller: ctx.user.id.toString() });
+  
         return Clients;
       } catch (err) {
         console.log(err);
@@ -149,11 +154,11 @@ const resolvers = {
     }
   },
   Mutation: {
-    newUser: async(_, { input } ) => {
+    createUser: async(_, { input } ) => {
       const { email, password } = input;
       // Check if user exist
-      const User = await User.findOne({email});
-      if (!User) { throw new error('user is not registered'); }
+      const user = await User.findOne({email});
+      if (user) { throw new Error('user is registered'); }
       // hash password
       const salt = await bcryptjs.genSalt(10);
       input.password = await bcryptjs.hash(password, salt);
@@ -169,10 +174,10 @@ const resolvers = {
     authenticateUser: async(_, {input} ) => {
       const { email, password } = input;
       // Check if user exist
-      const User = await User.findOne({email});
-      if (!User) { throw new error('User is not registered'); }
+      const user = await User.findOne({email});
+      if (!user) { throw new error('User is not registered'); }
       // Check if password is correct
-      const checkPassword = await bcryptjs.compare(password, User.password);
+      const checkPassword = await bcryptjs.compare(password, user.password);
       if (!checkPassword) { throw new error('El password no es correcto'); }
       // Create Token
       return {

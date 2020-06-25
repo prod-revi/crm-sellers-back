@@ -3,7 +3,7 @@ const typeDefs = require('./db/schema');
 const resolvers = require('./db/resolvers');
 const conectarDB = require('./config/db');
 const jwt = require('jsonwebtoken');
-require('dotenv').config({ path: 'variables.env' });
+require('dotenv').config({ path: '.env' });
 
 // Conect Data Base
 conectarDB();
@@ -18,15 +18,18 @@ const server = new ApolloServer({
     // console.log(req.headers)
 
     const token = req.headers['authorization'] || '';
-    // el token esta?
     if (token) {
-      // let's test --- a user alias Bearer has a secret key
+      // let's test --- User Bearer has a secret key
       try {
-        const user = jwt.verify(token.replace('Bearer ', ''), process.env.SECRET);
-        // console.log(user)
-        return {
-          user
-        }
+        const user = jwt.verify(token.replace('Bearer ', ''), process.env.SECRET, 
+          function(err, decoded) {
+            if (err) { 
+              console.log('Token is not valid')
+              return undefined
+            } else { next() }
+          }
+        );
+        return { user }
       } catch (err) {
         console.log("There was a bug : ");
         console.log(err);
