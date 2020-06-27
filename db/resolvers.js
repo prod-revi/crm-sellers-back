@@ -8,9 +8,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: '.env' });
 
 const crearToken = (user, secret, expiresIn) => {
-  // console.log(user);
   const { id, email, name, lastname } = user;
-
   return jwt.sign( { id, email, name, lastname }, secret, { expiresIn } )
 }
 
@@ -18,10 +16,9 @@ const crearToken = (user, secret, expiresIn) => {
 const resolvers = {
   Query: {
     getUser: async (_, {}, ctx) => {
-      console.log(ctx)
       return ctx.user
     },
-    getProduct: async () => {
+    getProducts: async () => {
       try {
         const orders = await Order.find({});
         return orders;
@@ -32,7 +29,7 @@ const resolvers = {
     getProduct : async (_, {id}) => {
       const product = await Product.findById(id);
       if (!product) {
-        throw new error('Product not found');
+        throw new Error('Product not found');
       }
       return product;
     },
@@ -45,22 +42,29 @@ const resolvers = {
       }
     },
     getClientsSeller: async (_, {}, ctx) => {
-      console.log(ctx.user)
-      try {
-        const Clients = await Client.find({ seller: ctx.user.id.toString() });
-  
-        return Clients;
-      } catch (err) {
-        console.log(err);
-      }
+      // if (!ctx.user) {
+      //   // console.log('!ctx.user', !ctx.user )
+      //   // if user in context exist then return empy object {}
+      //   return {}
+      // } else {
+        try {
+          const clients = await Client.find();
+          if (!Client) { throw new Error('seller not found'); }
+          console.log(clients);
+          
+          return clients;
+        } catch (err) {
+          console.log(err);
+        }
+      // }
     },
     getClient: async (_, {id}, ctx) => {
       // Check if Client exist 
       const Client = await Client.findById(id);
-      if (!Client) { throw new error('Client not found'); }
+      if (!Client) { throw new Error('Client not found'); }
       // Only whoever created the order can see it
       if ( Client.seller.toString() !== ctx.user.id ) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       return Client;
     },
@@ -84,11 +88,11 @@ const resolvers = {
       // Check if order exist
       const order = await Order.findById(id);
       if (!order) {
-        throw new error('Order not found');
+        throw new Error('Order not found');
       }
       // Only whoever created the order can see it
       if (order.seller.toString() !== ctx.user.id) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       return order;
     },
@@ -175,13 +179,13 @@ const resolvers = {
       const { email, password } = input;
       // Check if user exist
       const user = await User.findOne({email});
-      if (!user) { throw new error('User is not registered'); }
+      if (!user) { throw new Error('User is not registered'); }
       // Check if password is correct
       const checkPassword = await bcryptjs.compare(password, user.password);
-      if (!checkPassword) { throw new error('El password no es correcto'); }
+      if (!checkPassword) { throw new Error('El password no es correcto'); }
       // Create Token
       return {
-        token: crearToken(checkPassword, process.env.SECRET, '24h')
+        token: crearToken(user, process.env.SECRET, '24h')
       }
     },
     newProduct: async (_, {input}) => {
@@ -199,7 +203,7 @@ const resolvers = {
       let order = await Order.findById(id);
 
       if (!order) {
-        throw new error('Order not found');
+        throw new Error('Order not found');
       }
 
       // guardarlo en la base de datos
@@ -210,7 +214,7 @@ const resolvers = {
     deleteProduct: async (_, {id}) => {
       // Check if order exist
       let order = await Order.findById(id);
-      if (!order) { throw new error('Order not found'); }
+      if (!order) { throw new Error('Order not found'); }
       // delete
       await Order.findOneAndDelete({_id: id});
       return "Order Deleted";
@@ -219,7 +223,7 @@ const resolvers = {
       const {email} = input;
       // check if Client exist
       const Client = Client.findOne({ email });
-      if (Client) { throw new error('That Client is already registered'); }
+      if (Client) { throw new Error('That Client is already registered'); }
       const newClient = new Client(input);
       // Assign Seller
       newClient.seller = ctx.user.id;
@@ -234,10 +238,10 @@ const resolvers = {
     updateClient: async (_, {id, input}, ctx) => {
       // Check if client exist
       let Client = await Client.findById(id);
-      if (!Client) { throw new error('Client not found'); }
+      if (!Client) { throw new Error('Client not found'); }
       // Check if Seller can edit 
       if ( Client.seller.toString() !== ctx.user.id ) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       // Save Client 
       Client = await Client.findOneAndUpdate({_id: id}, input, {new: true})
@@ -245,11 +249,11 @@ const resolvers = {
     },
     deleteClient: async (_, {id}, ctx) => {
       let Client = await Client.findById(id);
-      if (!Client) { throw new error('Client not found');
+      if (!Client) { throw new Error('Client not found');
       }
       // Check if seller can edit
       if ( Client.seller.toString() !== ctx.user.id ) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       // Delete Client
       await Client.findOneAndDelete({_id: id});
@@ -259,17 +263,17 @@ const resolvers = {
       const { ClientInput } = input
       // Check Client
       let Client = await ClientInput.findById(Client);
-      if (!Client) { throw new error('Client not found'); }
+      if (!Client) { throw new Error('Client not found'); }
       // Check if Client is registered by Seller Verificar si el Client es seller
       if ( Client.seller.toString() !== ctx.user.id ) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       // Check available stock
       for await ( const product of input.order ) {
         const { id } = product;
         const order = await Order.findById(id);
         if (product.cantidad > order.existence) {
-          throw new error(`El product ${order.name} excede la cantidad disponible`);
+          throw new Error(`El product ${order.name} excede la cantidad disponible`);
         } else {
           // Subtract quantity to available
           order.existence = order.existence - product.cantidad;
@@ -288,13 +292,13 @@ const resolvers = {
       const { ClientInput } = input
       // Check order
       const Order = await Order.findById(id);
-      if (!Order) { throw new error('Order not found'); }
+      if (!Order) { throw new Error('Order not found'); }
       // Check Client
       const Client = await ClientInput.findById(Client);
-      if (!Client) { throw new error('Client not found'); }
+      if (!Client) { throw new Error('Client not found'); }
       // Check if Client and Order belong to Seller
       if ( Client.seller.toString() !== ctx.user.id ) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       // Check stock
       if (input.order) {
@@ -312,7 +316,7 @@ const resolvers = {
           }
   
           if (product.cantidad > order.existence) {
-            throw new error(`Product ${order.name} exceeds the available`);
+            throw new Error(`Product ${order.name} exceeds the available`);
           } else {
             // Substrace quantity to available
             order.existence = order.existence - product.cantidad;
@@ -326,10 +330,10 @@ const resolvers = {
     },
     deleteOrder: async (_, {id}, ctx) => {
       let Order = await Order.findById(id);
-      if (!Order) { throw new error('Order not found'); }
+      if (!Order) { throw new Error('Order not found'); }
       // Check if Seller can delete
       if ( Order.seller.toString() !== ctx.user.id ) {
-        throw new error("You don't have the credentials");
+        throw new Error("You don't have the credentials");
       }
       // Delete Client
       await Order.findOneAndDelete({_id: id});
