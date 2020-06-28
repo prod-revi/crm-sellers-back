@@ -24,7 +24,6 @@ const ClientsSchema = mongoose.Schema({
   },
   tel: {
     type: String,
-    required: true,
     trim: true
   },
   created: {

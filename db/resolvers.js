@@ -20,8 +20,8 @@ const resolvers = {
     },
     getProducts: async () => {
       try {
-        const orders = await Order.find({});
-        return orders;
+        const product = await Product.find({});
+        return product;
       } catch (err) {
         console.log(err)
       }
@@ -41,32 +41,23 @@ const resolvers = {
         console.log(err);
       }
     },
-    getClientsSeller: async (_, {}, ctx) => {
-      // if (!ctx.user) {
-      //   // console.log('!ctx.user', !ctx.user )
-      //   // if user in context exist then return empy object {}
-      //   return {}
-      // } else {
-        try {
-          const clients = await Client.find();
-          if (!Client) { throw new Error('seller not found'); }
-          console.log(clients);
-          
-          return clients;
-        } catch (err) {
-          console.log(err);
-        }
-      // }
-    },
+    getClientsSeller: async (_, {}, ctx ) => {
+      try {
+          const clientes = await Client.find({ seller: ctx.user.id.toString() });
+          return clientes;
+      } catch (error) {
+          console.log(error);
+      }
+  }, 
     getClient: async (_, {id}, ctx) => {
       // Check if Client exist 
-      const Client = await Client.findById(id);
-      if (!Client) { throw new Error('Client not found'); }
+      const client = await Client.findById(id);
+      if (!client) { throw new Error('Client not found'); }
       // Only whoever created the order can see it
-      if ( Client.seller.toString() !== ctx.user.id ) {
+      if ( client.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
-      return Client;
+      return client;
     },
     getOrders: async () => {
       try {
@@ -77,6 +68,10 @@ const resolvers = {
       }
     },
     getOrdersSeller: async (_, {}, ctx) => {
+      if (!ctx.user) {
+        console.log('user not exist, look ctx : ', ctx)
+        throw new Error('not exist user in context.', )
+      }
       try {
         const orders = await Order.find({ seller: ctx.user.id }).populate('Client');
         return orders;
@@ -188,48 +183,47 @@ const resolvers = {
         token: crearToken(user, process.env.SECRET, '24h')
       }
     },
-    newProduct: async (_, {input}) => {
+    createProduct: async (_, {input}) => {
       try {
-        const order = new Order(input);
+        const product = new Product(input);
         // write in db
-        const result = await order.save();
+        const result = await product.save();
         return result;
       } catch (err) {
         console.log(err);
       }
     },
     updateProduct: async (_, {id, input}) => {
-      // Revisar si el order existe
-      let order = await Order.findById(id);
+      // Revisar si el product existe
+      let product = await Product.findById(id);
 
-      if (!order) {
-        throw new Error('Order not found');
+      if (!product) {
+        throw new Error('Product not found');
       }
 
       // guardarlo en la base de datos
-      order = await Order.findOneAndUpdate({_id : id}, input, { new : true });
+      product = await Product.findOneAndUpdate({_id : id}, input, { new : true });
 
-      return order;
+      return product;
     },
     deleteProduct: async (_, {id}) => {
-      // Check if order exist
-      let order = await Order.findById(id);
-      if (!order) { throw new Error('Order not found'); }
+      // Check if product exist
+      let product = await Product.findById(id);
+      if (!product) { throw new Error('Product not found'); }
       // delete
-      await Order.findOneAndDelete({_id: id});
-      return "Order Deleted";
+      await Product.findOneAndDelete({_id: id});
+      return "Product Deleted";
     },
-    newClient: async (_, {input}, ctx) => {
+    createClient: async (_, {input}, ctx) => {
       const {email} = input;
-      // check if Client exist
-      const Client = Client.findOne({ email });
-      if (Client) { throw new Error('That Client is already registered'); }
-      const newClient = new Client(input);
+      const client = await Client.findOne({ email });
+      if (client) { throw new Error('That Client is already registered'); }
+      const createClient = new Client(input);
       // Assign Seller
-      newClient.seller = ctx.user.id;
+      createClient.seller = ctx.user.id;
       // write data base
       try {
-        const result = await newClient.save();
+        const result = await createClient.save();
         return result;
       } catch (err) {
         console.log(err);
@@ -237,55 +231,55 @@ const resolvers = {
     },
     updateClient: async (_, {id, input}, ctx) => {
       // Check if client exist
-      let Client = await Client.findById(id);
-      if (!Client) { throw new Error('Client not found'); }
+      let client = await Client.findById(id);
+      if (!client) { throw new Error('Client not found'); }
       // Check if Seller can edit 
-      if ( Client.seller.toString() !== ctx.user.id ) {
+      if ( client.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
       // Save Client 
-      Client = await Client.findOneAndUpdate({_id: id}, input, {new: true})
-      return Client;
+      client = await Client.findOneAndUpdate({_id: id}, input, {new: true})
+      return client;
     },
     deleteClient: async (_, {id}, ctx) => {
-      let Client = await Client.findById(id);
-      if (!Client) { throw new Error('Client not found');
+      let client = await Client.findById(id);
+      if (!client) { throw new Error('Client not found');
       }
       // Check if seller can edit
-      if ( Client.seller.toString() !== ctx.user.id ) {
+      if ( client.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
       // Delete Client
       await Client.findOneAndDelete({_id: id});
       return "Client Deleted";
     },
-    newOrder: async (_, {input}, ctx) => {
+    createOrder: async (_, {input}, ctx) => {
       const { ClientInput } = input
       // Check Client
-      let Client = await ClientInput.findById(Client);
-      if (!Client) { throw new Error('Client not found'); }
+      let client = await ClientInput.findById(Client);
+      if (!client) { throw new Error('Client not found'); }
       // Check if Client is registered by Seller Verificar si el Client es seller
-      if ( Client.seller.toString() !== ctx.user.id ) {
+      if ( client.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
       // Check available stock
       for await ( const product of input.order ) {
         const { id } = product;
         const order = await Order.findById(id);
-        if (product.cantidad > order.existence) {
-          throw new Error(`El product ${order.name} excede la cantidad disponible`);
+        if (product.quantity > order.existence) {
+          throw new Error(`El product ${order.name} excede la quantity disponible`);
         } else {
           // Subtract quantity to available
-          order.existence = order.existence - product.cantidad;
+          order.existence = order.existence - product.quantity;
           await order.save();
         }
       }
       // Create new Order
-      const nuevoOrder = new Order(input);
+      const newOrder = new Order(input);
       // Assig Seller
-      nuevoOrder.seller = ctx.user.id;
+      newOrder.seller = ctx.user.id;
       // Write db
-      const result = await nuevoOrder.save()
+      const result = await newOrder.save()
       return result;
     },
     updateOrder: async (_, {id, input}, ctx) => {
@@ -309,17 +303,17 @@ const resolvers = {
           for await ( const existente of Order.order ) {
             const { id: idExistente} = existente;
             if (id === idExistente) {
-              order.existence = order.existence + existente.cantidad;
+              order.existence = order.existence + existente.quantity;
             } else {
               console.log('no coincidence');
             }
           }
   
-          if (product.cantidad > order.existence) {
+          if (product.quantity > order.existence) {
             throw new Error(`Product ${order.name} exceeds the available`);
           } else {
             // Substrace quantity to available
-            order.existence = order.existence - product.cantidad;
+            order.existence = order.existence - product.quantity;
             await order.save();
           }
         }

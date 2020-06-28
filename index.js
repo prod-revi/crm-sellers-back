@@ -17,14 +17,13 @@ const server = new ApolloServer({
   resolvers,
   context: ({req}) => {    
     // the authorization token should arrive to start the session
-    const token = req.headers['authorization'] || '';
-    if (token) {
+    const token = req.headers['authorization'] || 'No Token Default';
+    if (token !== 'No token' && token !== 'No Token Default') {
       try {
         const user = jwt.verify(token.replace('Bearer ', ''), process.env.SECRET);
         return { user }
       } catch (err) {
-        console.log("There was a bug : ");
-        console.log(err);
+        console.log("There was a error : ", err);
       }
     }
   }

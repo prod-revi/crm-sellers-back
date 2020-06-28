@@ -138,17 +138,17 @@ const typeDefs = gql`
     authenticateUser(input: AuthenticateInput): Token
 
     # Products
-    newProduct(input: ProductInput) : Product
+    createProduct(input: ProductInput) : Product
     updateProduct(id: ID!, input: ProductInput) : Product
     deleteProduct(id: ID!): String
 
     # Clients
-    newClient(input: ClientInput) : Client
+    createClient(input: ClientInput) : Client
     updateClient(id: ID!, input: ClientInput) : Client
     deleteClient(id: ID!): String
 
     # Orders
-    newOrder(input: OrderInput) : Order
+    createOrder(input: OrderInput) : Order
     updateOrder(id: ID!, input: OrderInput): Order
     deleteOrder(id: ID!): String
 
