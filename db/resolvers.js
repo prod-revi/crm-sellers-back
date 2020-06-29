@@ -73,7 +73,7 @@ const resolvers = {
         throw new Error('not exist user in context.', )
       }
       try {
-        const orders = await Order.find({ seller: ctx.user.id }).populate('Client');
+        const orders = await Order.find({ seller: ctx.user.id }).populate('client');
         return orders;
       } catch (err) {
         console.log(err);
@@ -254,55 +254,58 @@ const resolvers = {
       return "Client Deleted";
     },
     createOrder: async (_, {input}, ctx) => {
-      const { ClientInput } = input
+      const { client } = input
+      console.log(input)
       // Check Client
-      let client = await ClientInput.findById(Client);
-      if (!client) { throw new Error('Client not found'); }
+      let clientData = await Client.findById(client);
+      if (!clientData) { throw new Error('Client not found'); }
       // Check if Client is registered by Seller Verificar si el Client es seller
-      if ( client.seller.toString() !== ctx.user.id ) {
+      if ( clientData.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
       // Check available stock
-      for await ( const product of input.order ) {
-        const { id } = product;
-        const order = await Order.findById(id);
-        if (product.quantity > order.existence) {
-          throw new Error(`El product ${order.name} excede la quantity disponible`);
+      for await ( const productOrder of input.order ) {
+        const { id } = productOrder;
+
+        const product = await Product.findById(id);
+        console.log('product : ', product)
+        if (productOrder.quantity > product.quantity) {
+          throw new Error(`El product ${productOrder.name} excede la quantity disponible`);
         } else {
           // Subtract quantity to available
-          order.existence = order.existence - product.quantity;
-          await order.save();
+          productOrder.quantity = product.quantity - productOrder.quantity;
+          await product.save();
         }
       }
       // Create new Order
-      const newOrder = new Order(input);
+      const order = new Order(input);
       // Assig Seller
-      newOrder.seller = ctx.user.id;
+      order.seller = ctx.user.id;
       // Write db
-      const result = await newOrder.save()
-      return result;
+      const res = await order.save()
+      return res;
     },
     updateOrder: async (_, {id, input}, ctx) => {
-      const { ClientInput } = input
+      const { client } = input
       // Check order
-      const Order = await Order.findById(id);
-      if (!Order) { throw new Error('Order not found'); }
+      const order = await Order.findById(id);
+      if (!order) { throw new Error('order not found'); }
       // Check Client
-      const Client = await ClientInput.findById(Client);
-      if (!Client) { throw new Error('Client not found'); }
-      // Check if Client and Order belong to Seller
-      if ( Client.seller.toString() !== ctx.user.id ) {
+      const clientDB = await Client.findById(client);
+      if (!clientDB) { throw new Error('Client not found'); }
+      // Check if Client and order belong to Seller
+      if ( clientDB.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
       // Check stock
       if (input.order) {
         for await ( const product of input.order ) {
-          const { id } = product;
-          const Order = await Order.findById(id);
+          const { id: idProduct } = product;
+          const order = await Order.findById(id);
           // Check available stock
-          for await ( const existente of Order.order ) {
-            const { id: idExistente} = existente;
-            if (id === idExistente) {
+          for await ( const existente of order.order ) {
+            const { id: idProOrder } = existente;
+            if (idProduct === idProOrder ) {
               order.existence = order.existence + existente.quantity;
             } else {
               console.log('no coincidence');
