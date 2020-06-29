@@ -326,10 +326,10 @@ const resolvers = {
       return result;
     },
     deleteOrder: async (_, {id}, ctx) => {
-      let Order = await Order.findById(id);
-      if (!Order) { throw new Error('Order not found'); }
+      let order = await Order.findById(id);
+      if (!order) { throw new Error('Order not found'); }
       // Check if Seller can delete
-      if ( Order.seller.toString() !== ctx.user.id ) {
+      if ( order.seller.toString() !== ctx.user.id ) {
         throw new Error("You don't have the credentials");
       }
       // Delete Client
